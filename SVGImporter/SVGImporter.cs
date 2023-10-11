@@ -50,7 +50,7 @@ public class SVGImporter : ResoniteMod
     public class UniversalImporterPatch
     {
         public static bool Prefix(ref IEnumerable<string> files, 
-            World world, float3 position, floatQ rotation)
+            World world, float3 position)
         {
             if (!Config.GetValue(Enabled)) return true;
 
@@ -98,7 +98,7 @@ public class SVGImporter : ResoniteMod
                     await SVGToGLB(blenderInput, blenderOutput, pbi);
                     await default(ToWorld);
 
-                    pbi.ProgressDone("Conversion compete!");
+                    pbi.ProgressDone("Conversion complete!");
                     pbi.Slot.RunInSeconds(2.5f, delegate
                     {
                         pbi.Slot.Destroy();
