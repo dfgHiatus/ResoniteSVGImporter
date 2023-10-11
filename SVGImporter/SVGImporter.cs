@@ -26,6 +26,10 @@ public class SVGImporter : ResoniteMod
     internal static readonly ModConfigurationKey<bool> Enabled =
         new("enabled", "Enabled", () => true);
 
+    [AutoRegisterConfigKey]
+        internal static readonly ModConfigurationKey<bool> SkipImportDialogue =
+        new("skipImportDialogue", "Skip Import Dialogue", () => false);
+
     public override void OnEngineInit()
     {
         new Harmony("net.dfgHiatus.SVGImporter").PatchAll();
@@ -48,8 +52,9 @@ public class SVGImporter : ResoniteMod
         public static bool Prefix(ref IEnumerable<string> files, 
             World world, float3 position, floatQ rotation)
         {
-            // If Blender is not available, we can't import SVGs
-            if (!(BlenderInterface.IsAvailable && Config.GetValue(Enabled)))
+            if (!Config.GetValue(Enabled)) return true;
+
+            if (!BlenderInterface.IsAvailable)
             {
                 NotificationMessage.SpawnTextMessage(
                     "Blender was not installed or detected.\nSVG Importer will not run", 
@@ -58,6 +63,8 @@ public class SVGImporter : ResoniteMod
             }
 
             List<string> notSVG = new();
+            int index = 0;
+            const int RowSize = 10;
             foreach (var file in files)
             {
                 var fileName = Path.GetFileName(file);
@@ -101,8 +108,9 @@ public class SVGImporter : ResoniteMod
                         AssetClass.Model,
                         new[] { blenderOutput },
                         world,
-                        position,
-                        rotation);
+                        position + UniversalImporter.GridOffset(ref index, RowSize),
+                        floatQ.Identity,
+                        Config.GetValue(SkipImportDialogue));
                 });
             }
 
