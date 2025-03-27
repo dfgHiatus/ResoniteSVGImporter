@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SVGImporter</RootNamespace>
     <AssemblyName>SVGImporter</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -34,7 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\0Harmony.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Resonite\rml_libs\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Elements.Core">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\Elements.Core.dll</HintPath>
@@ -51,6 +51,9 @@
     <Reference Include="SkyFrost.Base, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\SkyFrost.Base.dll</HintPath>
+    </Reference>
+    <Reference Include="SkyFrost.Base.Models">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\SkyFrost.Base.Models.dll</HintPath>
     </Reference>
     <Reference Include="System" />
   </ItemGroup>

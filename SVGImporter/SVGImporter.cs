@@ -16,7 +16,7 @@ public class SVGImporter : ResoniteMod
 {
     public override string Name => "SVGImporter";
     public override string Author => "dfgHiatus";
-    public override string Version => "2.0.0";
+    public override string Version => "2.0.1";
     public override string Link => "https://github.com/dfgHiatus/ResoniteSVGImporter/";
     public static ModConfiguration Config;
     private static readonly string TrueCachePath = Path.Combine(Engine.Current.CachePath, "Cache");
@@ -27,7 +27,7 @@ public class SVGImporter : ResoniteMod
         new("enabled", "Enabled", () => true);
 
     [AutoRegisterConfigKey]
-        internal static readonly ModConfigurationKey<bool> SkipImportDialogue =
+    internal static readonly ModConfigurationKey<bool> SkipImportDialogue =
         new("skipImportDialogue", "Skip Import Dialogue", () => false);
 
     public override void OnEngineInit()
@@ -39,17 +39,65 @@ public class SVGImporter : ResoniteMod
 
     public static void AssetPatch()
     {
-        var aExt = Traverse.
-            Create(typeof(AssetHelper)).
-            Field<Dictionary<AssetClass, List<string>>>("associatedExtensions");
-        aExt.Value[AssetClass.Special].Add(SVG_FILE_EXTENSION);
+        // Revised implementation using reflection to handle API changes
+        // Resonite changed their API AGAIN without any documentation this will probably break in 3 months...
+        try
+        {
+            Debug("Attempting to add SVG support to import system");
+
+            // Get ImportExtension type via reflection since it's now a struct inside AssetHelper
+            var assHelperType = typeof(AssetHelper);
+            var importExtType = assHelperType.GetNestedType("ImportExtension",
+                System.Reflection.BindingFlags.NonPublic);
+
+            if (importExtType == null)
+            {
+                Error("ImportExtension type not found. This mod is toast.");
+                return;
+            }
+
+            // Create an ImportExtension instance with reflection
+            // Constructor args: (string ext, bool autoImport)
+            var importExt = System.Activator.CreateInstance(importExtType,
+                new object[] { SVG_FILE_EXTENSION, true });
+
+            // Get the associatedExtensions field via reflection
+            var extensionsField = assHelperType.GetField("associatedExtensions",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+            if (extensionsField == null)
+            {
+                Error("Could not find associatedExtensions field");
+                return;
+            }
+
+            // Get the dictionary and add our extension to the Special asset class
+            var extensions = extensionsField.GetValue(null);
+            var dictType = extensions.GetType();
+            var specialValue = dictType.GetMethod("get_Item").Invoke(extensions, new object[] { AssetClass.Special });
+
+            if (specialValue == null)
+            {
+                Error("Couldn't get Special asset class list");
+                return;
+            }
+
+            // Add our ImportExtension to the list
+            specialValue.GetType().GetMethod("Add").Invoke(specialValue, new[] { importExt });
+
+            Debug("SVG import extension added successfully");
+        }
+        catch (System.Exception ex)
+        {
+            Error($"Failed to add SVG to special import formats: {ex}");
+        }
     }
 
     [HarmonyPatch(typeof(UniversalImporter), "Import", typeof(AssetClass), typeof(IEnumerable<string>),
     typeof(World), typeof(float3), typeof(floatQ), typeof(bool))]
     public class UniversalImporterPatch
     {
-        public static bool Prefix(ref IEnumerable<string> files, 
+        public static bool Prefix(ref IEnumerable<string> files,
             World world, float3 position)
         {
             if (!Config.GetValue(Enabled)) return true;
@@ -57,7 +105,7 @@ public class SVGImporter : ResoniteMod
             if (!BlenderInterface.IsAvailable)
             {
                 NotificationMessage.SpawnTextMessage(
-                    "Blender was not installed or detected.\nSVG Importer will not run", 
+                    "Blender was not installed or detected.\nSVG Importer will not run",
                     colorX.Red);
                 return true;
             }
