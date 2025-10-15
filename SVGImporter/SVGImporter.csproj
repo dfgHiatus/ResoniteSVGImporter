@@ -2,7 +2,7 @@
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
-    <LangVersion>10</LangVersion>
+    <LangVersion>default</LangVersion>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <OutputType>Library</OutputType>
@@ -14,6 +14,12 @@
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
     <ProjectGuid>{0322B2EF-7452-479D-BAE2-FCAB75033337}</ProjectGuid>
+    <GamePath>$(MSBuildThisFileDirectory)Resonite</GamePath>
+    <GamePath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\Resonite\')">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</GamePath>
+    <GamePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)\.steam\steam\steamapps\common\Resonite\</GamePath>
+    <GamePath Condition="Exists('E:\Programs\Steam\steamapps\common\Resonite')">E:\Programs\Steam\steamapps\common\Resonite\</GamePath>
+    <GamePath Condition="Exists('/mnt/LocalDisk/SteamLibrary/steamapps/common/Resonite/')">\mnt\LocalDisk\SteamLibrary\steamapps\common\Resonite\</GamePath>
+    <GamePath Condition="Exists('D:/SteamLibrary/steamapps/common/Resonite/')">D:\SteamLibrary\steamapps\common\Resonite\</GamePath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -34,32 +40,32 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_libs\0Harmony.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)rml_libs\0Harmony.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="Elements.Core">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\Elements.Core.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Resonite_Data\Managed\Elements.Core.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="Elements.Assets">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\Elements.Assets.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Resonite_Data\Managed\Elements.Assets.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="FrooxEngine">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\FrooxEngine.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Resonite_Data\Managed\FrooxEngine.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="ResoniteModLoader">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Libraries\ResoniteModLoader.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Libraries\ResoniteModLoader.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="SkyFrost.Base">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\SkyFrost.Base.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Resonite_Data\Managed\SkyFrost.Base.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="SkyFrost.Base.Models">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Resonite\Resonite_Data\Managed\SkyFrost.Base.Models.dll</HintPath>
-      <Private>False</Private>
+        <HintPath>$(GamePath)Resonite_Data\Managed\SkyFrost.Base.Models.dll</HintPath>
+        <Private>False</Private>
     </Reference>
     <Reference Include="System" />
   </ItemGroup>
@@ -73,6 +79,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetDir)\$(TargetFileName)" "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods\"</PostBuildEvent>
+      <PostBuildEvent>copy "$(TargetDir)\$(TargetFileName)" "$(GamePath)rml_mods\"</PostBuildEvent>
   </PropertyGroup>
 </Project>

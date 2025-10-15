@@ -8,89 +8,87 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace SVGImporter;
 
-public class SVGImporter : ResoniteMod
+public class SvgImporter : ResoniteMod
 {
     public override string Name => "SVGImporter";
     public override string Author => "dfgHiatus";
-    public override string Version => "2.0.1";
+    public override string Version => "2.0.2";
     public override string Link => "https://github.com/dfgHiatus/ResoniteSVGImporter/";
-    public static ModConfiguration Config;
+    
+    private static ModConfiguration _config;
     private static readonly string TrueCachePath = Path.Combine(Engine.Current.CachePath, "Cache");
-    private const string SVG_FILE_EXTENSION = "svg";
+    private const string SvgFileExtension = "svg";
 
-    [AutoRegisterConfigKey]
-    internal static readonly ModConfigurationKey<bool> Enabled =
+    // Reflection members for AssetHelper patching
+    private static readonly System.Type AssetHelperType = typeof(AssetHelper);
+    private static readonly System.Type ImportExtensionType = 
+        AssetHelperType.GetNestedType("ImportExtension", BindingFlags.NonPublic);
+    private static readonly FieldInfo AssociatedExtensionsField = 
+        AssetHelperType.GetField("associatedExtensions", BindingFlags.NonPublic | BindingFlags.Static);
+
+    [AutoRegisterConfigKey] private static readonly ModConfigurationKey<bool> Enabled =
         new("enabled", "Enabled", () => true);
 
-    [AutoRegisterConfigKey]
-    internal static readonly ModConfigurationKey<bool> SkipImportDialogue =
+    [AutoRegisterConfigKey] private static readonly ModConfigurationKey<bool> SkipImportDialogue =
         new("skipImportDialogue", "Skip Import Dialogue", () => false);
 
     public override void OnEngineInit()
     {
         new Harmony("net.dfgHiatus.SVGImporter").PatchAll();
-        Config = GetConfiguration();
-        Engine.Current.OnReady += AssetPatch;
-    }
-
-    public static void AssetPatch()
-    {
-        // Revised implementation using reflection to handle API changes
-        // Resonite changed their API AGAIN without any documentation this will probably break in 3 months...
-        try
+        _config = GetConfiguration();
+        
+        Engine.Current.OnReady += () =>
         {
-            Debug("Attempting to add SVG support to import system");
-
-            // Get ImportExtension type via reflection since it's now a struct inside AssetHelper
-            var assHelperType = typeof(AssetHelper);
-            var importExtType = assHelperType.GetNestedType("ImportExtension",
-                System.Reflection.BindingFlags.NonPublic);
-
-            if (importExtType == null)
+            try
             {
-                Error("ImportExtension type not found. This mod is toast.");
-                return;
+                Debug("Attempting to add SVG support to import system");
+
+                if (ImportExtensionType == null)
+                {
+                    Error("ImportExtension type not found. This mod is toast.");
+                    return;
+                }
+
+                if (AssociatedExtensionsField == null)
+                {
+                    Error("Could not find associatedExtensions field");
+                    return;
+                }
+
+                // Create an ImportExtension instance with reflection
+                // Constructor args: (string ext, bool autoImport)
+                var importExt = System.Activator.CreateInstance(ImportExtensionType, SvgFileExtension, true);
+
+                // Get the dictionary - it's Dictionary<AssetClass, List<ImportExtension>>
+                var extensions = AssociatedExtensionsField.GetValue(null);
+                
+                // Use reflection to get the Special asset class list
+                var dictType = extensions.GetType();
+                var getItemMethod = dictType.GetMethod("get_Item");
+                var specialList = getItemMethod!.Invoke(extensions, [AssetClass.Special]);
+
+                if (specialList == null)
+                {
+                    Error("Couldn't get Special asset class list");
+                    return;
+                }
+
+                // Add our ImportExtension to the list using reflection
+                var addMethod = specialList.GetType().GetMethod("Add");
+                addMethod!.Invoke(specialList, [importExt]);
+
+                Debug("SVG import extension added successfully");
             }
-
-            // Create an ImportExtension instance with reflection
-            // Constructor args: (string ext, bool autoImport)
-            var importExt = System.Activator.CreateInstance(importExtType,
-                new object[] { SVG_FILE_EXTENSION, true });
-
-            // Get the associatedExtensions field via reflection
-            var extensionsField = assHelperType.GetField("associatedExtensions",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-            if (extensionsField == null)
+            catch (System.Exception ex)
             {
-                Error("Could not find associatedExtensions field");
-                return;
+                Error($"Failed to add SVG to special import formats: {ex}");
             }
-
-            // Get the dictionary and add our extension to the Special asset class
-            var extensions = extensionsField.GetValue(null);
-            var dictType = extensions.GetType();
-            var specialValue = dictType.GetMethod("get_Item").Invoke(extensions, new object[] { AssetClass.Special });
-
-            if (specialValue == null)
-            {
-                Error("Couldn't get Special asset class list");
-                return;
-            }
-
-            // Add our ImportExtension to the list
-            specialValue.GetType().GetMethod("Add").Invoke(specialValue, new[] { importExt });
-
-            Debug("SVG import extension added successfully");
-        }
-        catch (System.Exception ex)
-        {
-            Error($"Failed to add SVG to special import formats: {ex}");
-        }
+        };
     }
 
     [HarmonyPatch(typeof(UniversalImporter), "Import", typeof(AssetClass), typeof(IEnumerable<string>),
@@ -100,7 +98,7 @@ public class SVGImporter : ResoniteMod
         public static bool Prefix(ref IEnumerable<string> files,
             World world, float3 position)
         {
-            if (!Config.GetValue(Enabled)) return true;
+            if (!_config.GetValue(Enabled)) return true;
 
             if (!BlenderInterface.IsAvailable)
             {
@@ -110,15 +108,15 @@ public class SVGImporter : ResoniteMod
                 return true;
             }
 
-            List<string> notSVG = new();
-            int index = 0;
-            const int RowSize = 10;
+            List<string> notSvg = [];
+            var index = 0;
+            const int rowSize = 10;
             foreach (var file in files)
             {
                 var fileName = Path.GetFileName(file);
-                if (!fileName.ToLower().EndsWith(SVG_FILE_EXTENSION))
+                if (!fileName.ToLower().EndsWith(SvgFileExtension))
                 {
-                    notSVG.Add(file);
+                    notSvg.Add(file);
                     continue;
                 }
 
@@ -134,7 +132,7 @@ public class SVGImporter : ResoniteMod
                 var root = Engine.Current.WorldManager.FocusedWorld.RootSlot;
                 root.StartGlobalTask(async delegate
                 {
-                    ProgressBarInterface pbi = await root.World.
+                    var pbi = await root.World.
                         AddSlot("Import Indicator").
                         SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>
                             (FavoriteEntity.ProgressBar);
@@ -143,7 +141,7 @@ public class SVGImporter : ResoniteMod
                     pbi.UpdateProgress(0.0f, "Got SVG! Starting conversion...", string.Empty);
 
                     await default(ToBackground);
-                    await SVGToGLB(blenderInput, blenderOutput, pbi);
+                    await SvgToGlb(blenderInput, blenderOutput, pbi);
                     await default(ToWorld);
 
                     pbi.ProgressDone("Conversion complete!");
@@ -154,26 +152,26 @@ public class SVGImporter : ResoniteMod
 
                     UniversalImporter.Import(
                         AssetClass.Model,
-                        new[] { blenderOutput },
+                        [blenderOutput],
                         world,
-                        position + UniversalImporter.GridOffset(ref index, RowSize),
+                        position + UniversalImporter.GridOffset(ref index, rowSize),
                         floatQ.Identity,
-                        Config.GetValue(SkipImportDialogue));
+                        _config.GetValue(SkipImportDialogue));
                 });
             }
 
-            if (notSVG.Count <= 0) return false;
-            files = notSVG.ToArray();
+            if (notSvg.Count <= 0) return false;
+            files = notSvg.ToArray();
             return true;
         }
 
         private static bool ContainsUnicodeCharacter(string input)
         {
-            const int MaxAnsiCode = 255;
-            return input.Any(c => c > MaxAnsiCode);
+            const int maxAnsiCode = 255;
+            return input.Any(c => c > maxAnsiCode);
         }
 
-        private static async Task SVGToGLB(string input, string output, IProgressIndicator pbi)
+        private static async Task SvgToGlb(string input, string output, IProgressIndicator pbi)
         {
             // Deleting the default cube is necessary for this script to function
             // Last tested against Blender 3.5.0
@@ -197,7 +195,7 @@ bpy.ops.export_scene.gltf(filepath = '{output}')", pbi);
         {
             var tempBlenderScript = Path.Combine(Path.GetTempPath(), Path.GetTempFileName() + ".py");
             File.WriteAllText(tempBlenderScript, script);
-            var blenderArgs = string.Format("-b -P \"{0}\"", tempBlenderScript);
+            var blenderArgs = $"-b -P \"{tempBlenderScript}\"";
             blenderArgs = "--disable-autoexec " + blenderArgs;
 
             var process = new Process();
@@ -207,7 +205,7 @@ bpy.ops.export_scene.gltf(filepath = '{output}')", pbi);
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            process.OutputDataReceived += (object sender, DataReceivedEventArgs e) =>
+            process.OutputDataReceived += (_, e) =>
             {
                 pbi.UpdateProgress(0.0f, e.Data, string.Empty);
                 Msg(e.Data);
